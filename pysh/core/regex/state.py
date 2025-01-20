@@ -33,3 +33,6 @@ class State(Errorable, Sized, Iterable[Char]):
 
     def tail(self) -> Self:
         return self._with_chars(self._try(self.chars.tail))
+
+    def empty(self) -> bool:
+        return self.chars.empty()

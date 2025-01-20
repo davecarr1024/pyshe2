@@ -2,10 +2,11 @@ from dataclasses import dataclass, field
 from typing import Iterable, Iterator, Optional, Self, Sized, Union, overload, override
 
 from pysh.core.chars import Char, Position, Stream
+from pysh.core.errors import Errorable
 
 
 @dataclass(frozen=True)
-class Result(Sized, Iterable[Char]):
+class Result(Errorable, Sized, Iterable[Char]):
     chars: Stream = field(default_factory=Stream)
 
     @override
@@ -42,3 +43,15 @@ class Result(Sized, Iterable[Char]):
     @classmethod
     def for_chars(cls, *chars: Char) -> Self:
         return cls()._with_chars(Stream.for_values(*chars))
+
+    def value(self) -> str:
+        return "".join(char.value for char in self)
+
+    def head(self) -> Char:
+        return self._try(
+            lambda: self.chars.head(),
+            "failed to get head of regex result",
+        )
+
+    def position(self) -> Position:
+        return self.head().position

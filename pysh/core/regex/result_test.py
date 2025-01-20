@@ -1,4 +1,4 @@
-from typing import Iterable
+from typing import Iterable, Optional
 import pytest
 from pysh.core.chars import Char, Position, Stream
 from pysh.core.regex import Result
@@ -65,7 +65,7 @@ def test_for_chars(subtests):
             (
                 [
                     Char("a"),
-                    Char('b',Position(0,1)),
+                    Char("b", Position(0, 1)),
                 ],
                 Result.for_str("ab"),
             ),
@@ -73,3 +73,48 @@ def test_for_chars(subtests):
     ):
         with subtests.test(chars=chars, expected=expected):
             assert Result.for_chars(*chars) == expected
+
+
+def test_value(subtests):
+    for result, expected in list[tuple[Result, str]](
+        [
+            (
+                Result(),
+                "",
+            ),
+            (
+                Result.for_str("a"),
+                "a",
+            ),
+            (
+                Result.for_str("ab"),
+                "ab",
+            ),
+        ]
+    ):
+        with subtests.test(result=result, expected=expected):
+            assert result.value() == expected
+
+
+def test_position(subtests):
+    for result, expected in list[tuple[Result, Optional[Position]]](
+        [
+            (
+                Result(),
+                None,
+            ),
+            (
+                Result.for_str("a"),
+                Position(0, 0),
+            ),
+            (
+                Result.for_str("ab", Position(1, 2)),
+                Position(1, 2),
+            ),
+        ]
+    ):
+        with subtests.test(result=result, expected=expected):
+            if expected is None:
+                pytest.raises(Result.Error, result.position)
+            else:
+                assert result.position() == expected

@@ -25,3 +25,8 @@ def test_tail():
     pytest.raises(State.Error, State().tail)
     assert State.for_str("a").tail() == State()
     assert State.for_str("ab").tail() == State.for_str("b", Position(0, 1))
+
+
+def test_empty():
+    assert State().empty()
+    assert not State.for_str("a").empty()
