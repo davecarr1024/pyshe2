@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import override
 
 from pysh.core.errors import Errorable
 from pysh.core.regex import Regex, State
@@ -9,6 +10,13 @@ from pysh.core.tokens import Token
 class Rule(Errorable):
     name: str
     regex: Regex
+
+    @override
+    def __str__(self) -> str:
+        if self.name == str(self.regex):
+            return self.name
+        else:
+            return f"{self.name}({self.regex})"
 
     @staticmethod
     def for_str(name: str, value: None | str | Regex = None) -> "Rule":

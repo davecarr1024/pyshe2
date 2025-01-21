@@ -7,6 +7,27 @@ from pysh.core.regex import Regex, State
 from pysh.core.tokens import Token
 
 
+def test_str(subtests):
+    for rule, expected in list[tuple[Rule, str]](
+        [
+            (
+                Rule.for_str("a"),
+                "a",
+            ),
+            (
+                Rule.for_str("r", "a"),
+                "r(a)",
+            ),
+            (
+                Rule.for_str("r", Regex.literal("a")),
+                "r(a)",
+            ),
+        ]
+    ):
+        with subtests.test(rule=rule, expected=expected):
+            assert str(rule) == expected
+
+
 def test_for_str(subtests):
     for name, value, expected in list[tuple[str, None | str | Regex, Rule]](
         [
