@@ -1,10 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import Self, Sequence, Union, final, overload, override
+from typing import Union, final, override
 
 from pysh.core import regex
 from pysh.core.errors import Errorable
 from pysh.core.lexer import Lexer
-from pysh.core.parser import composite
 from pysh.core.parser.state import State
 from pysh.core.tokens import Token
 
@@ -12,6 +11,11 @@ from pysh.core.tokens import Token
 class Parser[Result](ABC, Errorable):
     @abstractmethod
     def _apply(self, state: State) -> tuple[State, Result]: ...
+
+    def _apply_parser[
+        ChildResult
+    ](self, parser: "Parser[ChildResult]", state: State) -> tuple[State, ChildResult]:
+        return self._try(lambda: parser._apply(state))
 
     @abstractmethod
     def lexer(self) -> Lexer: ...
@@ -46,6 +50,11 @@ class Parser[Result](ABC, Errorable):
 
         return WithLexer[Result](self, lexer)
 
+    def prefix(self, prefix: "Parser") -> "Parser[Result]":
+        from pysh.core.parser.prefix import Prefix
+
+        return Prefix(self, prefix)
+
     def suffix(self, suffix: "Parser") -> "Parser[Result]":
         from pysh.core.parser.suffix import Suffix
 
@@ -57,13 +66,27 @@ class Parser[Result](ABC, Errorable):
             str,
             "Parser[Result]",
         ],
-    ) -> "Parser[Sequence[Result]]":
-        from pysh.core.parser.and_ import And
-
+    ) -> "and_.And[Result]":
         match rhs:
-            case And():
-                return And[Result].for_children(self, *rhs)
+            case and_.And():
+                return and_.And[Result].for_children(self, *rhs)
             case Parser():
-                return And[Result].for_children(self, rhs)
+                return and_.And[Result].for_children(self, rhs)
             case str():
-                return And[Result].for_children(self.suffix(self.head(rhs)))
+                return and_.And[Result].for_children(self.suffix(self.head(rhs)))
+
+    def __rand__(
+        self,
+        lhs: Union[
+            str,
+            "Parser[Result]",
+        ],
+    ) -> "and_.And[Result]":
+        match lhs:
+            case Parser():
+                return and_.And[Result].for_children(lhs, self)
+            case str():
+                return and_.And[Result].for_children(self.prefix(self.head(lhs)))
+
+
+from . import and_

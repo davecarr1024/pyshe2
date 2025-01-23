@@ -9,6 +9,10 @@ def test_combine(subtests):
     for parser in list[And](
         [
             a & b & c & d,
+            (a & b) & c & d,
+            a & (b & c) & d,
+            a & b & (c & d),
+            (a & b) & (c & d),
         ]
     ):
         with subtests.test(parser=parser):

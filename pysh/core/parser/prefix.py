@@ -8,13 +8,13 @@ from pysh.core.parser.unary import Unary
 
 @dataclass(frozen=True)
 class Prefix[Result](Unary[Result, Result]):
-    prefix: Parser
+    value: Parser
 
     @override
     def _str(self, depth: int) -> str:
-        return f"{self.prefix} & {self.child}"
+        return f"{self.value} & {self.child}"
 
     @override
     def _apply(self, state: State) -> tuple[State, Result]:
-        state, _ = self._try(lambda: self.prefix._apply(state))
+        state, _ = self._try(lambda: self.value._apply(state))
         return self._apply_child(state)
