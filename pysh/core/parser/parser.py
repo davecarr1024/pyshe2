@@ -48,21 +48,19 @@ class Parser[Result](ABC, Errorable):
 
         return WithLexer[Result](self, lexer)
 
-    def prefix(self, value: Union["Parser", str]) -> "prefix.Prefix[Result]":
+    def prefix(self, value: Union["Parser", str]) -> "prefix_lib.Prefix[Result]":
         match value:
             case Parser():
-                return prefix.Prefix(self, value)
+                return prefix_lib.Prefix(self, value)
             case str():
-                return prefix.Prefix(self, self.head(value))
+                return prefix_lib.Prefix(self, self.head(value))
 
-    def suffix(self, suffix: Union["Parser", str]) -> "Parser[Result]":
-        from pysh.core.parser.suffix import Suffix
-
-        match suffix:
+    def suffix(self, value: Union["Parser", str]) -> "suffix_lib.Suffix[Result]":
+        match value:
             case Parser():
-                return Suffix(self, suffix)
+                return suffix_lib.Suffix(self, value)
             case str():
-                return Suffix(self, self.head(suffix))
+                return suffix_lib.Suffix(self, self.head(value))
 
     def transform[T](self, func: Callable[[Result], T]) -> "Parser[T]":
         from pysh.core.parser.transform import Transform
@@ -84,25 +82,31 @@ class Parser[Result](ABC, Errorable):
             case _:
                 return arg.Arg[Object, Result](self, value)
 
+    @overload
+    def __and__(self, rhs: str) -> "suffix_lib.Suffix[Result]": ...
+
+    @overload
+    def __and__(self, rhs: "Parser[Result]") -> "and_.And[Result]": ...
+
     def __and__(
         self,
         rhs: Union[
             str,
             "Parser[Result]",
         ],
-    ) -> "and_.And[Result]":
+    ) -> Union["and_.And[Result]", "suffix_lib.Suffix[Result]"]:
         match rhs:
             case and_.And():
                 return and_.And[Result].for_children(self, *rhs)
             case Parser():
                 return and_.And[Result].for_children(self, rhs)
             case str():
-                return and_.And[Result].for_children(self.suffix(rhs))
+                return self.suffix(rhs)
 
     def __rand__(
         self,
         lhs: str,
-    ) -> "prefix.Prefix[Result]":
+    ) -> "prefix_lib.Prefix[Result]":
         return self.prefix(lhs)
 
     def __or__(self, rhs: "Parser[Result]") -> "or_.Or[Result]":
@@ -113,4 +117,4 @@ class Parser[Result](ABC, Errorable):
                 return or_.Or[Result].for_children(self, rhs)
 
 
-from . import and_, or_, head, arg, prefix
+from . import and_, or_, head, arg, prefix as prefix_lib, suffix as suffix_lib
