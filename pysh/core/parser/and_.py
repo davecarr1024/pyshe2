@@ -17,7 +17,7 @@ class And[Result](Nary[Sequence[Result], Result]):
     @override
     def _str(self, depth: int) -> str:
         return self._str_join(depth, " & ")
-    
+
     @override
     def _apply(self, state: State) -> tuple[State, Sequence[Result]]:
         result: MutableSequence[Result] = []
@@ -50,12 +50,12 @@ class And[Result](Nary[Sequence[Result], Result]):
             Parser[Result],
             "And[Result]",
         ],
-    ) -> "And[Result]":
+    ) -> Self:
         match rhs:
             case And():
-                return And[Result].for_children(*self, *rhs)
+                return self.for_children(*self, *rhs)
             case Parser():
-                return And[Result].for_children(*self, rhs)
+                return self.for_children(*self, rhs)
             case str():
                 return self._with(prefix=self.head(rhs))
 
@@ -66,9 +66,9 @@ class And[Result](Nary[Sequence[Result], Result]):
             str,
             Parser[Result],
         ],
-    ) -> "And[Result]":
+    ) -> Self:
         match lhs:
             case str():
                 return self._with(suffix=self.head(lhs))
             case Parser():
-                return And[Result].for_children(lhs, *self)
+                return self.for_children(lhs, *self)

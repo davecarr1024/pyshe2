@@ -22,6 +22,10 @@ class Lexer(Errorable, Sized, Iterable[Rule]):
     rules: FrozenSet[Rule] = field(default_factory=frozenset)
 
     @override
+    def __str__(self) -> str:
+        return f"Lexer({', '.join(str(rule) for rule in self)})"
+
+    @override
     def __len__(self) -> int:
         return len(self.rules)
 

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Union, final, override
+from typing import Callable, Union, final, override
 
 from pysh.core import regex
 from pysh.core.errors import Errorable
@@ -48,15 +48,43 @@ class Parser[Result](ABC, Errorable):
 
         return WithLexer[Result](self, lexer)
 
-    def prefix(self, prefix: "Parser") -> "Parser[Result]":
+    def prefix(self, prefix: Union["Parser", str]) -> "Parser[Result]":
         from pysh.core.parser.prefix import Prefix
 
-        return Prefix(self, prefix)
+        match prefix:
+            case Parser():
+                return Prefix(self, prefix)
+            case str():
+                return Prefix(self, self.head(prefix))
 
-    def suffix(self, suffix: "Parser") -> "Parser[Result]":
+    def suffix(self, suffix: Union["Parser", str]) -> "Parser[Result]":
         from pysh.core.parser.suffix import Suffix
 
-        return Suffix(self, suffix)
+        match suffix:
+            case Parser():
+                return Suffix(self, suffix)
+            case str():
+                return Suffix(self, self.head(suffix))
+
+    def transform[T](self, func: Callable[[Result], T]) -> "Parser[T]":
+        from pysh.core.parser.transform import Transform
+
+        return Transform[T, Result].for_func(self, func)
+
+    def arg[
+        Object
+    ](
+        self,
+        value: Union[
+            Callable[[Object, Result], Object],
+            str,
+        ],
+    ) -> "arg.Arg[Object,Result]":
+        match value:
+            case str():
+                return arg.Arg[Object, Result].for_dataclass_property(self, value)
+            case _:
+                return arg.Arg[Object, Result](self, value)
 
     def __and__(
         self,
@@ -71,7 +99,7 @@ class Parser[Result](ABC, Errorable):
             case Parser():
                 return and_.And[Result].for_children(self, rhs)
             case str():
-                return and_.And[Result].for_children(self.suffix(self.head(rhs)))
+                return and_.And[Result].for_children(self.suffix(rhs))
 
     def __rand__(
         self,
@@ -84,7 +112,7 @@ class Parser[Result](ABC, Errorable):
             case Parser():
                 return and_.And[Result].for_children(lhs, self)
             case str():
-                return and_.And[Result].for_children(self.prefix(self.head(lhs)))
+                return and_.And[Result].for_children(self.prefix(lhs))
 
     def __or__(self, rhs: "Parser[Result]") -> "or_.Or[Result]":
         match rhs:
@@ -94,4 +122,4 @@ class Parser[Result](ABC, Errorable):
                 return or_.Or[Result].for_children(self, rhs)
 
 
-from . import and_, or_, head
+from . import and_, or_, head, arg

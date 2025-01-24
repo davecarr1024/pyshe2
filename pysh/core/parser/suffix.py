@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import override
 
+from pysh.core.lexer import Lexer
 from pysh.core.parser.parser import Parser
 from pysh.core.parser.state import State
 from pysh.core.parser.unary import Unary
@@ -19,3 +20,7 @@ class Suffix[Result](Unary[Result, Result]):
         state, result = self._apply_child(state)
         state, _ = self._try(lambda: self.value._apply(state))
         return state, result
+
+    @override
+    def lexer(self) -> Lexer:
+        return self.value.lexer() | super().lexer()
