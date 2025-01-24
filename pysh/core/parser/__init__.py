@@ -7,3 +7,4 @@ from .nary import Nary
 from .and_ import And
 from .prefix import Prefix
 from .suffix import Suffix
+from .or_ import Or

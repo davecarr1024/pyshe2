@@ -40,10 +40,8 @@ class Parser[Result](ABC, Errorable):
     def _str(self, depth: int) -> str: ...
 
     @staticmethod
-    def head(name: str, value: None | str | regex.Regex = None) -> "Parser[Token]":
-        from pysh.core.parser.head import Head
-
-        return Head.for_str(name, value)
+    def head(name: str, value: None | str | regex.Regex = None) -> "head.Head":
+        return head.Head.for_str(name, value)
 
     def with_lexer(self, lexer: Lexer) -> "Parser[Result]":
         from pysh.core.parser.with_lexer import WithLexer
@@ -88,5 +86,12 @@ class Parser[Result](ABC, Errorable):
             case str():
                 return and_.And[Result].for_children(self.prefix(self.head(lhs)))
 
+    def __or__(self, rhs: "Parser[Result]") -> "or_.Or[Result]":
+        match rhs:
+            case or_.Or():
+                return or_.Or[Result].for_children(self, *rhs)
+            case Parser():
+                return or_.Or[Result].for_children(self, rhs)
 
-from . import and_
+
+from . import and_, or_, head
