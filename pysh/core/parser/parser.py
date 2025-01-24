@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Callable, Union, final, override
+from typing import Callable, Union, final, overload, override
 
 from pysh.core import regex
 from pysh.core.errors import Errorable
@@ -48,14 +48,12 @@ class Parser[Result](ABC, Errorable):
 
         return WithLexer[Result](self, lexer)
 
-    def prefix(self, prefix: Union["Parser", str]) -> "Parser[Result]":
-        from pysh.core.parser.prefix import Prefix
-
-        match prefix:
+    def prefix(self, value: Union["Parser", str]) -> "prefix.Prefix[Result]":
+        match value:
             case Parser():
-                return Prefix(self, prefix)
+                return prefix.Prefix(self, value)
             case str():
-                return Prefix(self, self.head(prefix))
+                return prefix.Prefix(self, self.head(value))
 
     def suffix(self, suffix: Union["Parser", str]) -> "Parser[Result]":
         from pysh.core.parser.suffix import Suffix
@@ -103,16 +101,9 @@ class Parser[Result](ABC, Errorable):
 
     def __rand__(
         self,
-        lhs: Union[
-            str,
-            "Parser[Result]",
-        ],
-    ) -> "and_.And[Result]":
-        match lhs:
-            case Parser():
-                return and_.And[Result].for_children(lhs, self)
-            case str():
-                return and_.And[Result].for_children(self.prefix(lhs))
+        lhs: str,
+    ) -> "prefix.Prefix[Result]":
+        return self.prefix(lhs)
 
     def __or__(self, rhs: "Parser[Result]") -> "or_.Or[Result]":
         match rhs:
@@ -122,4 +113,4 @@ class Parser[Result](ABC, Errorable):
                 return or_.Or[Result].for_children(self, rhs)
 
 
-from . import and_, or_, head, arg
+from . import and_, or_, head, arg, prefix
