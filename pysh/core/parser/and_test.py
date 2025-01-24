@@ -72,3 +72,17 @@ def test_apply(subtests):
                 pytest.raises(Parser.Error, lambda: parser(state))
             else:
                 assert parser(state) == expected
+
+
+def test_prefix():
+    assert ("a" & (Parser.head("b").value() & Parser.head("c").value()))("abc") == (
+        State(),
+        ["b", "c"],
+    )
+
+
+def test_suffix():
+    assert ((Parser.head("b").value() & Parser.head("c").value()) & "a")("bca") == (
+        State(),
+        ["b", "c"],
+    )
