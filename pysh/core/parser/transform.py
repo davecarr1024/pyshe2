@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Callable, override
+from typing import Callable, final, override
 
 from pysh.core.parser.parser import Parser
 from pysh.core.parser.state import State
@@ -13,6 +13,7 @@ class Transform[Result, ChildResult](Unary[Result, ChildResult]):
     def _transform(self, child_result: ChildResult) -> Result: ...
 
     @override
+    @final
     def _apply(self, state: State) -> tuple[State, Result]:
         state, child_result = self._apply_child(state)
         return state, self._try(lambda: self._transform(child_result))

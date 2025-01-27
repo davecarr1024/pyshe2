@@ -3,11 +3,11 @@ from typing import override
 
 from pysh.core.lexer import Lexer
 from pysh.core.parser.state import State
-from pysh.core.parser.unary import Unary
+from pysh.core.parser.transform import Transform
 
 
 @dataclass(frozen=True)
-class WithLexer[Result](Unary[Result, Result]):
+class WithLexer[Result](Transform[Result, Result]):
     value: Lexer
 
     @override
@@ -19,5 +19,5 @@ class WithLexer[Result](Unary[Result, Result]):
         return self.value | super()._lexer()
 
     @override
-    def _apply(self, state: State) -> tuple[State, Result]:
-        return self._apply_child(state)
+    def _transform(self, child_result: Result) -> Result:
+        return child_result

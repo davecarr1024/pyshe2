@@ -3,17 +3,16 @@ from typing import Self, Union, overload, override
 
 from pysh.core.parser.objects.arg import Arg
 from pysh.core.parser.state import State
-from pysh.core.parser.unary import Unary
+from pysh.core.parser.transform import Transform
 
 
 @dataclass(frozen=True)
-class Param[T](Unary[Arg[T], T]):
+class Param[Result](Transform[Arg[Result], Result]):
     name: str
 
     @override
-    def _apply(self, state: State) -> tuple[State, Arg[T]]:
-        state, value = self._apply_child(state)
-        return state, Arg[T](self.name, value)
+    def _transform(self, child_result: Result) -> Arg[Result]:
+        return Arg[Result](self.name, child_result)
 
     @override
     def _str(self, depth: int) -> str:
@@ -30,7 +29,7 @@ class Param[T](Unary[Arg[T], T]):
         self,
         rhs: Union[
             str,
-            "Param[T]",
+            "Param[Result]",
             "params.Params",
         ],
     ) -> Union[

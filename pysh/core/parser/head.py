@@ -4,6 +4,7 @@ from typing import Self, override
 from pysh.core.lexer import Lexer, Rule
 from pysh.core.parser.parser import Parser
 from pysh.core.parser.state import State
+from pysh.core.parser.transform import Transform
 from pysh.core.parser.unary import Unary
 from pysh.core.regex import Regex
 from pysh.core.tokens import Token
@@ -39,12 +40,11 @@ class Head(Parser[Token]):
         return self.Value(self)
 
     @dataclass(frozen=True)
-    class Value(Unary[str, Token]):
+    class Value(Transform[str, Token]):
         @override
         def _str(self, depth: int) -> str:
             return f"{self.child}.value()"
 
         @override
-        def _apply(self, state: State) -> tuple[State, str]:
-            state, child_result = self._apply_child(state)
-            return state, child_result.value
+        def _transform(self, child_result: Token) -> str:
+            return child_result.value
