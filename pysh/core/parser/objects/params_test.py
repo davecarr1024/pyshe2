@@ -20,6 +20,4 @@ def test_combine(subtests):
         ]
     ):
         with subtests.test(params=params):
-            assert params == Params.for_children(a, b, c, d), str(
-                (str(params), type(params))
-            )
+            assert params == Params.for_children(a, b, c, d), params
