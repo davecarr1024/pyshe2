@@ -11,7 +11,11 @@ class Regex(ABC, Errorable):
     def for_str(input: str) -> "Regex":
         from pysh.core.regex.and_ import And
 
-        return And.for_children(*[Regex.literal(c) for c in input])
+        children = [Regex.literal(c) for c in input]
+        if len(children) == 1:
+            return children[0]
+        else:
+            return And.for_children(*children)
 
     @abstractmethod
     def _apply(self, state: State) -> tuple[State, Result]: ...

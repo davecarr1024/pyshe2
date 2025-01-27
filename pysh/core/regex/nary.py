@@ -25,7 +25,4 @@ class Nary(Regex, Sized, Iterable[Regex]):
 
     @classmethod
     def for_children(cls, *children: Regex) -> Regex:
-        if len(children) == 1:
-            return children[0]
-        else:
-            return cls(tuple(children))
+        return cls(tuple(children))
