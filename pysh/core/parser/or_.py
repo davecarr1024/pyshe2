@@ -18,7 +18,7 @@ class Or[Result](Nary[Result, Result]):
         errors: MutableSequence[Error] = []
         for child in self:
             try:
-                return child._apply(state)
+                return child(state)
             except Error as error:
                 errors.append(error)
         raise self._error(None, *errors)

@@ -27,7 +27,7 @@ class Nary[
         return iter(self.children)
 
     @override
-    def lexer(self) -> Lexer:
+    def _lexer(self) -> Lexer:
         lexer = Lexer()
         for child in self:
             lexer |= child.lexer()
@@ -42,4 +42,4 @@ class Nary[
     ) -> tuple[State, ChildResult]:
         if child not in self:
             raise self._error(f"unknown chlid {child} in {self}")
-        return self._try(lambda: child._apply(state))
+        return self._try(lambda: child(state))

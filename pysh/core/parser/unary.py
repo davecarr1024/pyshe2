@@ -11,8 +11,8 @@ class Unary[Result, ChildResult](Parser[Result]):
     child: Parser[ChildResult]
 
     def _apply_child(self, state: State) -> tuple[State, ChildResult]:
-        return self._try(lambda: self.child._apply(state))
+        return self._try(lambda: self.child(state))
 
     @override
-    def lexer(self) -> Lexer:
+    def _lexer(self) -> Lexer:
         return self.child.lexer()

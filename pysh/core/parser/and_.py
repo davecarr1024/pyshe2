@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from typing import MutableSequence, Optional, Self, Sequence, Union, cast, override
 
 from pysh.core.lexer import Lexer
-from pysh.core.parser.affixes.affixable import Affixable
 from pysh.core.parser.nary import Nary
 from pysh.core.parser.parser import Parser
 from pysh.core.parser.state import State
@@ -18,7 +17,6 @@ class And[
         Result,
         ChildParser,
     ],
-    Affixable[Sequence[Result]],
 ):
     @override
     def _str(self, depth: int) -> str:
@@ -30,11 +28,7 @@ class And[
         return s
 
     @override
-    def lexer(self) -> Lexer:
-        return super().lexer() | super(Affixable, self).lexer()
-
-    @override
-    def _apply_in_affixes(self, state: State) -> tuple[State, Sequence[Result]]:
+    def _apply(self, state: State) -> tuple[State, Sequence[Result]]:
         result: MutableSequence[Result] = []
         for child in self:
             state, child_result = self._apply_child(child, state)
@@ -56,7 +50,7 @@ class And[
             case Parser():
                 return self.for_children(*self, rhs)
             case str():
-                return self._with_suffix(self.head(rhs))
+                return super().__and__(rhs)
 
     @override
     def __rand__(  # type:ignore
@@ -67,7 +61,7 @@ class And[
         ],
     ) -> Self:
         match lhs:
-            case str():
-                return self._with_prefix(self.head(lhs))
             case Parser():
                 return self.for_children(lhs, *self)
+            case str():
+                return super().__rand__(lhs)

@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Callable, Union, final, overload, override
+from dataclasses import dataclass, field, replace
+from typing import Callable, Optional, Self, Union, final, overload, override
 
 from pysh.core import regex
 from pysh.core.errors import Errorable
@@ -8,17 +9,30 @@ from pysh.core.parser.state import State
 from pysh.core.tokens import Token
 
 
+@dataclass(frozen=True, kw_only=True)
 class Parser[Result](ABC, Errorable):
+    _prefix: Optional["Parser"] = field(default=None)
+    _suffix: Optional["Parser"] = field(default=None)
+
     @abstractmethod
     def _apply(self, state: State) -> tuple[State, Result]: ...
 
     def _apply_parser[
         ChildResult
     ](self, parser: "Parser[ChildResult]", state: State) -> tuple[State, ChildResult]:
-        return self._try(lambda: parser._apply(state))
+        return self._try(lambda: parser(state))
+
+    @final
+    def lexer(self) -> Lexer:
+        lexer = Lexer()
+        if self._prefix is not None:
+            lexer |= self._prefix.lexer()
+        if self._suffix is not None:
+            lexer |= self._suffix.lexer()
+        return lexer | self._lexer()
 
     @abstractmethod
-    def lexer(self) -> Lexer: ...
+    def _lexer(self) -> Lexer: ...
 
     @final
     def __call__(self, state: str | regex.State | State) -> tuple[State, Result]:
@@ -29,12 +43,40 @@ class Parser[Result](ABC, Errorable):
                     return State.for_tokens(*self._try(lambda: self.lexer()(state)))
 
                 state = fix_state(state)
-        return self._apply(state)
+        return self.__call(state)
+
+    @final
+    def __call(self, state: State) -> tuple[State, Result]:
+        if self._prefix is not None:
+            state, _ = self._apply_parser(self._prefix, state)
+        state, result = self._apply(state)
+        if self._suffix is not None:
+            state, _ = self._apply_parser(self._suffix, state)
+        return state, result
+
+    def prefix(self, prefix: Union["Parser", str]) -> Self:
+        if self._prefix is not None:
+            raise self._error(f"trying to set multiple prefixes {prefix}")
+        if isinstance(prefix, str):
+            prefix = self.head(prefix)
+        return replace(self, _prefix=prefix)
+
+    def suffix(self, suffix: Union["Parser", str]) -> Self:
+        if self._suffix is not None:
+            raise self._error(f"trying to set multiple suffixes {suffix}")
+        if isinstance(suffix, str):
+            suffix = self.head(suffix)
+        return replace(self, _suffix=suffix)
 
     @override
     @final
     def __str__(self) -> str:
-        return self._str(0)
+        s = self._str(0)
+        if self._prefix is not None:
+            s = f"{self._prefix} & {s}"
+        if self._suffix is not None:
+            s = f"{s} & {self._suffix}"
+        return s
 
     @abstractmethod
     def _str(self, depth: int) -> str: ...
@@ -59,45 +101,16 @@ class Parser[Result](ABC, Errorable):
             )
         )
 
-    def prefix(self, value: Union["Parser", str]) -> "prefix.Prefix[Result]":
-        match value:
-            case Parser():
-                return prefix.Prefix(self, value)
-            case str():
-                return prefix.Prefix(self, self.head(value))
-
-    def suffix(self, value: Union["Parser", str]) -> "suffix.Suffix[Result]":
-        match value:
-            case Parser():
-                return suffix.Suffix(self, value)
-            case str():
-                return suffix.Suffix(self, self.head(value))
-
     def transform[T](self, func: Callable[[Result], T]) -> "Parser[T]":
         from pysh.core.parser.transform import Transform
 
         return Transform[T, Result].for_func(self, func)
 
-    # def arg[
-    #     Object
-    # ](
-    #     self,
-    #     value: Union[
-    #         Callable[[Object, Result], Object],
-    #         str,
-    #     ],
-    # ) -> "arg.Arg[Object,Result]":
-    #     match value:
-    #         case str():
-    #             return arg.Arg[Object, Result].for_dataclass_property(self, value)
-    #         case _:
-    #             return arg.Arg[Object, Result](self, value)
-
     def param(self, name: str) -> "param.Param[Result]":
         return param.Param[Result](self, name)
 
     @overload
-    def __and__(self, rhs: str) -> "suffix.Suffix[Result]": ...
+    def __and__(self, rhs: str) -> Self: ...
 
     @overload
     def __and__(self, rhs: "Parser[Result]") -> "and_.And[Result]": ...
@@ -108,7 +121,7 @@ class Parser[Result](ABC, Errorable):
             str,
             "Parser[Result]",
         ],
-    ) -> Union["and_.And[Result]", "suffix.Suffix[Result]"]:
+    ) -> Union["and_.And[Result]", Self]:
         match rhs:
             case and_.And():
                 return and_.And[Result].for_children(self, *rhs)
@@ -120,7 +133,7 @@ class Parser[Result](ABC, Errorable):
     def __rand__(
         self,
         lhs: str,
-    ) -> "Parser[Result]":
+    ) -> Self:
         return self.prefix(lhs)
 
     def __or__(self, rhs: "Parser[Result]") -> "or_.Or[Result]":
@@ -133,4 +146,3 @@ class Parser[Result](ABC, Errorable):
 
 from . import and_, or_, head
 from .objects import param
-from .affixes import prefix, suffix

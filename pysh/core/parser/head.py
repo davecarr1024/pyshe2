@@ -22,7 +22,7 @@ class Head(Parser[Token]):
         return cls(Rule.for_str(name, value))
 
     @override
-    def lexer(self) -> Lexer:
+    def _lexer(self) -> Lexer:
         return Lexer.for_rules(self.rule)
 
     @override
