@@ -8,11 +8,11 @@ from pysh.core.tokens import Token
 
 
 def test_combine(subtests):
-    a = Parser.head("a")
-    b = Parser.head("b")
-    c = Parser.head("c")
-    d = Parser.head("d")
-    for parser in list[And](
+    a: Parser[str] = Parser.head("a").value()
+    b: Parser[str] = Parser.head("b").value()
+    c: Parser[str] = Parser.head("c").value()
+    d: Parser[str] = Parser.head("d").value()
+    for parser in list[And[str]](
         [
             a & b & c & d,
             (a & b) & c & d,

@@ -1,29 +1,25 @@
 from dataclasses import dataclass
-from types import NotImplementedType
-from typing import MutableSequence, Optional, Self, Sequence, Union, overload, override
+from typing import MutableSequence, Optional, Self, Sequence, Union, cast, override
 
 from pysh.core.lexer import Lexer
+from pysh.core.parser.affixes.affixable import Affixable
 from pysh.core.parser.nary import Nary
 from pysh.core.parser.parser import Parser
 from pysh.core.parser.state import State
-from pysh.core.parser.suffix import Suffix
-from pysh.core.parser.unary import Unary
 
 
 @dataclass(frozen=True)
-class And[Result](Nary[Sequence[Result], Result]):
-    _prefix: Optional[Parser] = None
-    _suffix: Optional[Parser] = None
-
-    @override
-    def lexer(self) -> Lexer:
-        lexer = super().lexer()
-        if self._prefix is not None:
-            lexer |= self._prefix.lexer()
-        if self._suffix is not None:
-            lexer |= self._suffix.lexer()
-        return lexer
-
+class And[
+    Result,
+    ChildParser: Parser = Parser[Result],
+](
+    Nary[
+        Sequence[Result],
+        Result,
+        ChildParser,
+    ],
+    Affixable[Sequence[Result]],
+):
     @override
     def _str(self, depth: int) -> str:
         s = self._str_join(depth, " & ")
@@ -34,56 +30,44 @@ class And[Result](Nary[Sequence[Result], Result]):
         return s
 
     @override
-    def _apply(self, state: State) -> tuple[State, Sequence[Result]]:
+    def lexer(self) -> Lexer:
+        return super().lexer() | super(Affixable, self).lexer()
+
+    @override
+    def _apply_in_affixes(self, state: State) -> tuple[State, Sequence[Result]]:
         result: MutableSequence[Result] = []
-        if self._prefix is not None:
-            state, _ = self._apply_parser(self._prefix, state)
         for child in self:
             state, child_result = self._apply_child(child, state)
             result.append(child_result)
-        if self._suffix is not None:
-            state, _ = self._apply_parser(self._suffix, state)
         return state, result
-
-    def _with(
-        self,
-        *,
-        prefix: Optional[Parser] = None,
-        suffix: Optional[Parser] = None,
-    ) -> Self:
-        return self.__class__(
-            children=self.children,
-            _prefix=prefix,
-            _suffix=suffix,
-        )
 
     @override
     def __and__(  # type: ignore
         self,
         rhs: Union[
             str,
-            Parser[Result],
-            "And[Result]",
+            ChildParser,
+            Self,
         ],
     ) -> Self:
         match rhs:
             case And():
-                return self.for_children(*self, *rhs)
+                return self.for_children(*self, *cast(Self, rhs))
             case Parser():
                 return self.for_children(*self, rhs)
             case str():
-                return self._with(suffix=self.head(rhs))
+                return self._with_suffix(self.head(rhs))
 
     @override
     def __rand__(  # type:ignore
         self,
         lhs: Union[
             str,
-            Parser[Result],
+            ChildParser,
         ],
     ) -> Self:
         match lhs:
             case str():
-                return self._with(prefix=self.head(lhs))
+                return self._with_prefix(self.head(lhs))
             case Parser():
                 return self.for_children(lhs, *self)
