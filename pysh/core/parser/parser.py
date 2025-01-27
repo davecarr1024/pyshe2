@@ -13,6 +13,7 @@ from pysh.core.tokens import Token
 class Parser[Result](ABC, Errorable):
     _prefix: Optional["Parser"] = field(default=None)
     _suffix: Optional["Parser"] = field(default=None)
+    _lexer_value: Optional[Lexer] = field(default=None)
 
     @abstractmethod
     def _apply(self, state: State) -> tuple[State, Result]: ...
@@ -24,7 +25,7 @@ class Parser[Result](ABC, Errorable):
 
     @final
     def lexer(self) -> Lexer:
-        lexer = Lexer()
+        lexer = self._lexer_value or Lexer()
         if self._prefix is not None:
             lexer |= self._prefix.lexer()
         if self._suffix is not None:
@@ -85,12 +86,10 @@ class Parser[Result](ABC, Errorable):
     def head(name: str, value: None | str | regex.Regex = None) -> "head.Head":
         return head.Head.for_str(name, value)
 
-    def with_lexer(self, lexer: Lexer) -> "Parser[Result]":
-        from pysh.core.parser.with_lexer import WithLexer
+    def with_lexer(self, lexer: Lexer) -> Self:
+        return replace(self, _lexer_value=(self._lexer_value or Lexer()) | lexer)
 
-        return WithLexer[Result](self, lexer)
-
-    def ignore_whitespace(self) -> "Parser[Result]":
+    def ignore_whitespace(self) -> Self:
         return self.with_lexer(
             Lexer.for_rules(
                 Rule.for_str(
@@ -104,7 +103,7 @@ class Parser[Result](ABC, Errorable):
     def transform[T](self, func: Callable[[Result], T]) -> "Parser[T]":
         from pysh.core.parser.transform import Transform
 
-        return Transform[T, Result].for_func(self, func)
+        return Transform[T, Result, Parser[Result]].for_func(self, func)
 
     def param(self, name: str) -> "param.Param[Result]":
         return param.Param[Result](self, name)

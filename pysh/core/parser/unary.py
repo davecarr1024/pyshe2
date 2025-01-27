@@ -7,8 +7,12 @@ from pysh.core.parser.state import State
 
 
 @dataclass(frozen=True)
-class Unary[Result, ChildResult](Parser[Result]):
-    child: Parser[ChildResult]
+class Unary[
+    Result,
+    ChildResult,
+    ChildParser: Parser = Parser[Result],
+](Parser[Result]):
+    child: ChildParser
 
     def _apply_child(self, state: State) -> tuple[State, ChildResult]:
         return self._try(lambda: self.child(state))

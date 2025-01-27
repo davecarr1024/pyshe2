@@ -1,11 +1,9 @@
 from dataclasses import dataclass
 from typing import Self, override
-
 from pysh.core.lexer import Lexer, Rule
 from pysh.core.parser.parser import Parser
 from pysh.core.parser.state import State
 from pysh.core.parser.transform import Transform
-from pysh.core.parser.unary import Unary
 from pysh.core.regex import Regex
 from pysh.core.tokens import Token
 
@@ -40,7 +38,13 @@ class Head(Parser[Token]):
         return self.Value(self)
 
     @dataclass(frozen=True)
-    class Value(Transform[str, Token]):
+    class Value(
+        Transform[
+            str,
+            Token,
+            Parser[Token],
+        ]
+    ):
         @override
         def _str(self, depth: int) -> str:
             return f"{self.child}.value()"

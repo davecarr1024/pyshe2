@@ -8,7 +8,17 @@ from pysh.core.parser.unary import Unary
 
 
 @dataclass(frozen=True)
-class Transform[Result, ChildResult](Unary[Result, ChildResult]):
+class Transform[
+    Result,
+    ChildResult,
+    ChildParser: Parser,
+](
+    Unary[
+        Result,
+        ChildResult,
+        ChildParser,
+    ]
+):
     @abstractmethod
     def _transform(self, child_result: ChildResult) -> Result: ...
 
@@ -20,14 +30,24 @@ class Transform[Result, ChildResult](Unary[Result, ChildResult]):
 
     @staticmethod
     def for_func(
-        child: Parser[ChildResult],
+        child: ChildParser,
         func: Callable[[ChildResult], Result],
-    ) -> "Transform[Result,ChildResult]":
-        return _FuncTransform[Result, ChildResult](child, func)
+    ) -> "Transform[Result,ChildResult,ChildParser]":
+        return _FuncTransform[Result, ChildResult, ChildParser](child, func)
 
 
 @dataclass(frozen=True)
-class _FuncTransform[Result, ChildResult](Transform[Result, ChildResult]):
+class _FuncTransform[
+    Result,
+    ChildResult,
+    ChildParser: Parser,
+](
+    Transform[
+        Result,
+        ChildResult,
+        ChildParser,
+    ]
+):
     func: Callable[[ChildResult], Result]
 
     @override

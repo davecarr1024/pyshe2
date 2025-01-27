@@ -1,13 +1,12 @@
 from dataclasses import dataclass
 from typing import Self, Union, overload, override
-
 from pysh.core.parser.objects.arg import Arg
-from pysh.core.parser.state import State
+from pysh.core.parser.parser import Parser
 from pysh.core.parser.transform import Transform
 
 
 @dataclass(frozen=True)
-class Param[Result](Transform[Arg[Result], Result]):
+class Param[Result](Transform[Arg[Result], Result, Parser[Result]]):
     name: str
 
     @override
@@ -22,14 +21,14 @@ class Param[Result](Transform[Arg[Result], Result]):
     def __and__(self, rhs: str) -> Self: ...
 
     @overload
-    def __and__(self, rhs: Self) -> "params.Params": ...
+    def __and__(self, rhs: "Param") -> "params.Params": ...
 
     @override
     def __and__(  # type:ignore
         self,
         rhs: Union[
             str,
-            "Param[Result]",
+            "Param",
             "params.Params",
         ],
     ) -> Union[
