@@ -17,7 +17,7 @@ class Param[T](Unary[Arg[T], T]):
 
     @override
     def _str(self, depth: int) -> str:
-        return f"{self.child}.param({self.param})"
+        return f"{self.child}.param({self.name})"
 
     @overload
     def __and__(self, rhs: str) -> Self: ...
@@ -30,7 +30,8 @@ class Param[T](Unary[Arg[T], T]):
         self,
         rhs: Union[
             str,
-            Self,
+            "Param[T]",
+            "params.Params",
         ],
     ) -> Union[
         Self,
@@ -39,6 +40,8 @@ class Param[T](Unary[Arg[T], T]):
         match rhs:
             case Param():
                 return params.Params.for_children(self, rhs)
+            case params.Params():
+                return params.Params.for_children(self, *rhs)
             case str():
                 return super().__and__(rhs)
 
