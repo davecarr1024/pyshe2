@@ -3,7 +3,7 @@ from typing import Callable, Union, final, overload, override
 
 from pysh.core import regex
 from pysh.core.errors import Errorable
-from pysh.core.lexer import Lexer
+from pysh.core.lexer import Lexer, Rule
 from pysh.core.parser.state import State
 from pysh.core.tokens import Token
 
@@ -47,6 +47,17 @@ class Parser[Result](ABC, Errorable):
         from pysh.core.parser.with_lexer import WithLexer
 
         return WithLexer[Result](self, lexer)
+
+    def ignore_whitespace(self) -> "Parser[Result]":
+        return self.with_lexer(
+            Lexer.for_rules(
+                Rule.for_str(
+                    "ws",
+                    regex.Regex.whitespace().one_or_more(),
+                    False,
+                )
+            )
+        )
 
     def prefix(self, value: Union["Parser", str]) -> "prefix_lib.Prefix[Result]":
         match value:

@@ -53,7 +53,9 @@ def test_for_str(subtests):
 
 
 def test_apply(subtests):
-    for state, expected in list[tuple[str | State, Optional[tuple[State, Token]]]](
+    for state, expected in list[
+        tuple[str | State, Optional[tuple[State, Token, bool]]]
+    ](
         [
             (
                 "",
@@ -65,15 +67,27 @@ def test_apply(subtests):
             ),
             (
                 "a",
-                (State(), Token("r", "a")),
+                (
+                    State(),
+                    Token("r", "a"),
+                    True,
+                ),
             ),
             (
                 State.for_str("a", Position(1, 2)),
-                (State(), Token("r", "a", Position(1, 2))),
+                (
+                    State(),
+                    Token("r", "a", Position(1, 2)),
+                    True,
+                ),
             ),
             (
                 "ab",
-                (State.for_str("b", Position(0, 1)), Token("r", "a")),
+                (
+                    State.for_str("b", Position(0, 1)),
+                    Token("r", "a"),
+                    True,
+                ),
             ),
         ]
     ):

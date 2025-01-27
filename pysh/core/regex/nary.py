@@ -8,7 +8,7 @@ from pysh.core.regex.state import State
 
 @dataclass(frozen=True)
 class Nary(Regex, Sized, Iterable[Regex]):
-    children: Sequence[Regex] = field(default_factory=list)
+    children: Sequence[Regex] = field(default_factory=tuple)
 
     @override
     def __len__(self) -> int:
@@ -28,4 +28,4 @@ class Nary(Regex, Sized, Iterable[Regex]):
         if len(children) == 1:
             return children[0]
         else:
-            return cls(list(children))
+            return cls(tuple(children))

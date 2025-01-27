@@ -37,7 +37,7 @@ class Lexer(Errorable, Sized, Iterable[Rule]):
     def for_rules(cls, *rules: Rule) -> Self:
         return cls(frozenset(rules))
 
-    def _apply_any_rule(self, state: str | State) -> tuple[State, Token]:
+    def _apply_any_rule(self, state: str | State) -> tuple[State, Token, bool]:
         errors: MutableSequence[Rule.Error] = []
         for rule in self:
             try:
@@ -51,8 +51,9 @@ class Lexer(Errorable, Sized, Iterable[Rule]):
             state = State.for_str(state)
         result = Result()
         while not state.empty():
-            state, token = self._apply_any_rule(state)
-            result += token
+            state, token, include = self._apply_any_rule(state)
+            if include:
+                result += token
         return result
 
     def _with_rules(self, *rules: Rule) -> Self:

@@ -90,3 +90,9 @@ def test_apply(subtests):
                 pytest.raises(Lexer.Error, lambda: lexer(state))
             else:
                 assert lexer(state) == expected
+
+
+def test_include():
+    assert Lexer.for_rules(Rule.for_str("a"), Rule.for_str("b", include=False))(
+        "ab"
+    ) == Result.for_tokens(Token("a", "a"))
