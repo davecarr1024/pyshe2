@@ -1,38 +1,47 @@
 from abc import ABC, abstractmethod
 import string
 from typing import Iterable, Optional, Sequence, final, overload, override
-from pysh.core.errors import Errorable
+from pysh.core.errors import Error, Errorable
 from pysh.core.regex.result import Result
 from pysh.core.regex.state import State
 
 
 class Regex(ABC, Errorable):
+    class ParseError(Error): ...
+
     @staticmethod
     def for_str(input: str) -> "Regex":
         from pysh.core.parser import Parser
         from pysh.core.regex import And, Literal
 
-        def to_and(children: Sequence[Regex]) -> Regex:
-            if len(children) == 1:
-                return children[0]
-            else:
-                return And.for_children(*children)
-
-        return to_and([Literal(c) for c in input])
-
-        operators: Sequence[str] = "()[]^*+?"
+        operators: Sequence[str] = "()[]^*+?\\"
 
         def literal() -> Parser[Literal]:
             return (
-                Parser.head("literal", Regex.class_(operators).not_())
+                Parser.head("literal", Regex.class_(operators, "operators").not_())
                 .value()
                 .transform(Literal)
             )
 
         def regex() -> Parser[Regex]:
+            def to_and(children: Sequence[Regex]) -> Regex:
+                match len(children):
+                    case 0:
+                        raise Regex.ParseError(msg=f"empty regex from {repr(input)}")
+                    case 1:
+                        return children[0]
+                    case _:
+                        return And.for_children(*children)
+
             return literal().until_empty().transform(to_and)
 
-        _, result = regex()(input)
+        try:
+            _, result = regex()(input)
+        except Parser.Error as error:
+            raise Regex.ParseError(
+                msg=f"failed to parse regex {repr(input)}",
+                children=[error],
+            ) from error
         return result
 
     @abstractmethod
