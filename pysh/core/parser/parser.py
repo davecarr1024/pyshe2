@@ -96,7 +96,13 @@ class Parser(Generic[Result], ABC, Errorable):
     def head(name: str, value: None | str | regex.Regex = None) -> "head.Head":
         return head.Head.for_str(name, value)
 
-    def with_lexer(self, lexer_: "lexer.Lexer") -> Self:
+    def with_lexer(
+        self,
+        lexer_: Union[
+            "lexer.Lexer",
+            "lexer_rule.Rule",
+        ],
+    ) -> Self:
         return replace(self, _lexer_value=(self._lexer_value or lexer.Lexer()) | lexer_)
 
     def ignore_whitespace(self) -> Self:
@@ -127,6 +133,11 @@ class Parser(Generic[Result], ABC, Errorable):
         from .until import UntilEmpty
 
         return UntilEmpty[Result](self)
+
+    def zero_or_more(self) -> "Parser[Sequence[Result]]":
+        from .zero_or_more import ZeroOrMore
+
+        return ZeroOrMore[Result](self)
 
     @overload
     def __and__(self, rhs: str) -> Self: ...
