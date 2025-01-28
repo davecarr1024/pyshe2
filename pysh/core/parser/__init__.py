@@ -6,3 +6,4 @@ from .nary import Nary
 from .and_ import And
 from .or_ import Or
 from .zero_or_more import ZeroOrMore
+from .one_or_more import OneOrMore

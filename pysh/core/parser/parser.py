@@ -139,6 +139,16 @@ class Parser(Generic[Result], ABC, Errorable):
 
         return ZeroOrMore[Result](self)
 
+    def one_or_more(self) -> "Parser[Sequence[Result]]":
+        from .one_or_more import OneOrMore
+
+        return OneOrMore[Result](self)
+
+    def zero_or_one(self) -> "Parser[Optional[Result]]":
+        from .zero_or_one import ZeroOrOne
+
+        return ZeroOrOne[Result](self)
+
     @overload
     def __and__(self, rhs: str) -> Self: ...
 
