@@ -5,6 +5,7 @@ from typing import (
     Generic,
     Optional,
     Self,
+    Sequence,
     TypeVar,
     Union,
     final,
@@ -15,17 +16,17 @@ from pysh.core import regex
 from pysh.core.errors import Errorable
 from pysh.core.parser.state import State
 
-_Result = TypeVar("_Result", covariant=True)
+Result = TypeVar("Result", covariant=True)
 
 
 @dataclass(frozen=True, kw_only=True)
-class Parser(Generic[_Result], ABC, Errorable):
+class Parser(Generic[Result], ABC, Errorable):
     _prefix: Optional["Parser"] = field(default=None)
     _suffix: Optional["Parser"] = field(default=None)
     _lexer_value: Optional["lexer.Lexer"] = field(default=None)
 
     @abstractmethod
-    def _apply(self, state: State) -> tuple[State, _Result]: ...
+    def _apply(self, state: State) -> tuple[State, Result]: ...
 
     def _apply_parser[
         ChildResult
@@ -45,7 +46,7 @@ class Parser(Generic[_Result], ABC, Errorable):
     def _lexer(self) -> "lexer.Lexer": ...
 
     @final
-    def __call__(self, state: str | regex.State | State) -> tuple[State, _Result]:
+    def __call__(self, state: str | regex.State | State) -> tuple[State, Result]:
         match state:
             case str() | regex.State():
 
@@ -56,7 +57,7 @@ class Parser(Generic[_Result], ABC, Errorable):
         return self.__call(state)
 
     @final
-    def __call(self, state: State) -> tuple[State, _Result]:
+    def __call(self, state: State) -> tuple[State, Result]:
         if self._prefix is not None:
             state, _ = self._apply_parser(self._prefix, state)
         state, result = self._apply(state)
@@ -109,32 +110,42 @@ class Parser(Generic[_Result], ABC, Errorable):
             )
         )
 
-    def transform[T](self, func: Callable[[_Result], T]) -> "Parser[T]":
+    def transform[T](self, func: Callable[[Result], T]) -> "Parser[T]":
         from pysh.core.parser.transform import Transform
 
-        return Transform[T, _Result, Parser[_Result]].for_func(self, func)
+        return Transform[T, Result, Parser[Result]].for_func(self, func)
 
-    def param(self, name: str) -> "param.Param[_Result]":
-        return param.Param[_Result](self, name)
+    def param(self, name: str) -> "param.Param[Result]":
+        return param.Param[Result](self, name)
+
+    def until(self, cond: "Parser") -> "Parser[Sequence[Result]]":
+        from .until import Until
+
+        return Until[Result](self, cond)
+
+    def until_empty(self) -> "Parser[Sequence[Result]]":
+        from .until import UntilEmpty
+
+        return UntilEmpty[Result](self)
 
     @overload
     def __and__(self, rhs: str) -> Self: ...
 
     @overload
-    def __and__(self, rhs: "Parser[_Result]") -> "and_.And[_Result]": ...
+    def __and__(self, rhs: "Parser[Result]") -> "and_.And[Result]": ...
 
     def __and__(
         self,
         rhs: Union[
             str,
-            "Parser[_Result]",
+            "Parser[Result]",
         ],
-    ) -> Union["and_.And[_Result]", Self]:
+    ) -> Union["and_.And[Result]", Self]:
         match rhs:
             case and_.And():
-                return and_.And[_Result].for_children(self, *rhs)
+                return and_.And[Result].for_children(self, *rhs)
             case Parser():
-                return and_.And[_Result].for_children(self, rhs)
+                return and_.And[Result].for_children(self, rhs)
             case str():
                 return self.suffix(rhs)
 
@@ -144,12 +155,12 @@ class Parser(Generic[_Result], ABC, Errorable):
     ) -> Self:
         return self.prefix(lhs)
 
-    def __or__(self, rhs: "Parser[_Result]") -> "or_.Or[_Result]":
+    def __or__(self, rhs: "Parser[Result]") -> "or_.Or[Result]":
         match rhs:
             case or_.Or():
-                return or_.Or[_Result].for_children(self, *rhs)
+                return or_.Or[Result].for_children(self, *rhs)
             case Parser():
-                return or_.Or[_Result].for_children(self, rhs)
+                return or_.Or[Result].for_children(self, rhs)
 
 
 from pysh.core.lexer import lexer, rule as lexer_rule
