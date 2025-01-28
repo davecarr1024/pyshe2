@@ -39,12 +39,21 @@ class Lexer(Errorable, Sized, Iterable[Rule]):
 
     def _apply_any_rule(self, state: str | State) -> tuple[State, Token, bool]:
         errors: MutableSequence[Rule.Error] = []
+        results: MutableSequence[tuple[State, Token, bool]] = []
         for rule in self:
             try:
-                return rule(state)
+                results.append(rule(state))
             except Rule.Error as error:
                 errors.append(error)
-        raise self._error(f"failed to apply any rule to {state}", *errors)
+        match len(results):
+            case 0:
+                raise self._error(f"failed to apply any rule to {state}", *errors)
+            case 1:
+                return results[0]
+            case _:
+                raise self._error(
+                    f"ambiguous lex for {state}: {[token for _, token, _ in results]}"
+                )
 
     def __call__(self, state: str | State) -> Result:
         if isinstance(state, str):

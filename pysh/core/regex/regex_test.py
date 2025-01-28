@@ -22,8 +22,24 @@ def test_for_str(subtests):
                 Regex.literal("a") & Regex.literal("b"),
             ),
             (
-                "(",
+                "[",
                 None,
+            ),
+            (
+                "[a",
+                None,
+            ),
+            (
+                "[a-",
+                None,
+            ),
+            (
+                "[a-z",
+                None,
+            ),
+            (
+                "[a-z]",
+                Regex.range("a", "z"),
             ),
         ]
     ):

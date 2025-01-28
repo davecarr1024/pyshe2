@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import MutableSequence, Optional, Self, Sequence, Union, cast, override
 
-from pysh.core.lexer import Lexer
+from pysh.core.lexer import Lexer, Rule
 from pysh.core.parser.nary import Nary
 from pysh.core.parser.parser import Parser
 from pysh.core.parser.state import State
@@ -40,6 +40,7 @@ class And[
         self,
         rhs: Union[
             str,
+            Rule,
             ChildParser,
             Self,
         ],
@@ -49,7 +50,7 @@ class And[
                 return self.for_children(*self, *cast(Self, rhs))
             case Parser():
                 return self.for_children(*self, rhs)
-            case str():
+            case str() | Rule():
                 return super().__and__(rhs)
 
     @override
@@ -57,11 +58,12 @@ class And[
         self,
         lhs: Union[
             str,
+            Rule,
             ChildParser,
         ],
     ) -> Self:
         match lhs:
             case Parser():
                 return self.for_children(lhs, *self)
-            case str():
+            case str() | Rule():
                 return super().__rand__(lhs)

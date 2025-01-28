@@ -10,6 +10,13 @@ class State(Errorable, Sized, Iterable[Char]):
     chars: Stream = field(default_factory=Stream)
 
     @override
+    def __str__(self) -> str:
+        if self.empty():
+            return "<empty state>"
+        else:
+            return f"'{''.join(char.value for char in self)}'@{self.head().position}"
+
+    @override
     def __len__(self) -> int:
         return len(self.chars)
 

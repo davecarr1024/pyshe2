@@ -12,9 +12,10 @@ from typing import (
     overload,
     override,
 )
-from pysh.core import regex
 from pysh.core.errors import Errorable
+from pysh.core.lexer import Lexer, Rule as LexRule
 from pysh.core.parser.state import State
+from pysh.core.regex import Regex, State as RegexState
 
 Result = TypeVar("Result", covariant=True)
 
@@ -23,7 +24,7 @@ Result = TypeVar("Result", covariant=True)
 class Parser(Generic[Result], ABC, Errorable):
     _prefix: Optional["Parser"] = field(default=None)
     _suffix: Optional["Parser"] = field(default=None)
-    _lexer_value: Optional["lexer.Lexer"] = field(default=None)
+    _lexer_value: Optional[Lexer] = field(default=None)
 
     @abstractmethod
     def _apply(self, state: State) -> tuple[State, Result]: ...
@@ -34,23 +35,23 @@ class Parser(Generic[Result], ABC, Errorable):
         return self._try(lambda: parser(state))
 
     @final
-    def lexer(self) -> "lexer.Lexer":
-        lexer_ = self._lexer_value or lexer.Lexer()
+    def lexer(self) -> Lexer:
+        lexer = self._lexer_value or Lexer()
         if self._prefix is not None:
-            lexer_ |= self._prefix.lexer()
+            lexer |= self._prefix.lexer()
         if self._suffix is not None:
-            lexer_ |= self._suffix.lexer()
-        return lexer_ | self._lexer()
+            lexer |= self._suffix.lexer()
+        return lexer | self._lexer()
 
     @abstractmethod
-    def _lexer(self) -> "lexer.Lexer": ...
+    def _lexer(self) -> Lexer: ...
 
     @final
-    def __call__(self, state: str | regex.State | State) -> tuple[State, Result]:
+    def __call__(self, state: str | RegexState | State) -> tuple[State, Result]:
         match state:
-            case str() | regex.State():
+            case str() | RegexState():
 
-                def fix_state(state: str | regex.State) -> State:
+                def fix_state(state: str | RegexState) -> State:
                     return State.for_tokens(*self._try(lambda: self.lexer()(state)))
 
                 state = fix_state(state)
@@ -65,19 +66,46 @@ class Parser(Generic[Result], ABC, Errorable):
             state, _ = self._apply_parser(self._suffix, state)
         return state, result
 
-    def prefix(self, prefix: Union["Parser", str]) -> Self:
-        if self._prefix is not None:
-            raise self._error(f"trying to set multiple prefixes {prefix}")
-        if isinstance(prefix, str):
-            prefix = self.head(prefix)
-        return replace(self, _prefix=prefix)
+    @classmethod
+    def _affix_value(
+        cls,
+        value: Union[
+            "Parser",
+            str,
+            LexRule,
+        ],
+    ) -> "Parser":
+        match value:
+            case Parser():
+                return value
+            case str():
+                return cls.head(value)
+            case LexRule():
+                return head.Head(value)
 
-    def suffix(self, suffix: Union["Parser", str]) -> Self:
+    def prefix(
+        self,
+        value: Union[
+            "Parser",
+            str,
+            LexRule,
+        ],
+    ) -> Self:
+        if self._prefix is not None:
+            raise self._error(f"trying to overwrite prefix with {value}")
+        return replace(self, _prefix=self._affix_value(value))
+
+    def suffix(
+        self,
+        value: Union[
+            "Parser",
+            str,
+            LexRule,
+        ],
+    ) -> Self:
         if self._suffix is not None:
-            raise self._error(f"trying to set multiple suffixes {suffix}")
-        if isinstance(suffix, str):
-            suffix = self.head(suffix)
-        return replace(self, _suffix=suffix)
+            raise self._error(f"trying to set multiple suffixes {value}")
+        return replace(self, _suffix=self._affix_value(value))
 
     @override
     @final
@@ -92,27 +120,45 @@ class Parser(Generic[Result], ABC, Errorable):
     @abstractmethod
     def _str(self, depth: int) -> str: ...
 
+    @overload
     @staticmethod
-    def head(name: str, value: None | str | regex.Regex = None) -> "head.Head":
-        return head.Head.for_str(name, value)
+    def head(name: str) -> "head.Head": ...
+
+    @overload
+    @staticmethod
+    def head(name: str, value: str) -> "head.Head": ...
+
+    @overload
+    @staticmethod
+    def head(name: str, value: Regex) -> "head.Head": ...
+
+    @overload
+    @staticmethod
+    def head(name: LexRule) -> "head.Head": ...
+
+    @staticmethod
+    def head(name: str | LexRule, value: None | str | Regex = None) -> "head.Head":
+        match name:
+            case str():
+                return head.Head.for_str(name, value)
+            case LexRule():
+                return head.Head(name)
 
     def with_lexer(
         self,
-        lexer_: Union[
-            "lexer.Lexer",
-            "lexer_rule.Rule",
+        lexer: Union[
+            Lexer,
+            LexRule,
         ],
     ) -> Self:
-        return replace(self, _lexer_value=(self._lexer_value or lexer.Lexer()) | lexer_)
+        return replace(self, _lexer_value=(self._lexer_value or Lexer()) | lexer)
 
     def ignore_whitespace(self) -> Self:
         return self.with_lexer(
-            lexer.Lexer.for_rules(
-                lexer_rule.Rule.for_str(
-                    "ws",
-                    regex.Regex.whitespace().one_or_more(),
-                    False,
-                )
+            LexRule.for_str(
+                "ws",
+                Regex.whitespace().one_or_more(),
+                False,
             )
         )
 
@@ -150,7 +196,7 @@ class Parser(Generic[Result], ABC, Errorable):
         return ZeroOrOne[Result](self)
 
     @overload
-    def __and__(self, rhs: str) -> Self: ...
+    def __and__(self, rhs: str | LexRule) -> Self: ...
 
     @overload
     def __and__(self, rhs: "Parser[Result]") -> "and_.And[Result]": ...
@@ -159,6 +205,7 @@ class Parser(Generic[Result], ABC, Errorable):
         self,
         rhs: Union[
             str,
+            LexRule,
             "Parser[Result]",
         ],
     ) -> Union["and_.And[Result]", Self]:
@@ -167,12 +214,12 @@ class Parser(Generic[Result], ABC, Errorable):
                 return and_.And[Result].for_children(self, *rhs)
             case Parser():
                 return and_.And[Result].for_children(self, rhs)
-            case str():
+            case str() | LexRule():
                 return self.suffix(rhs)
 
     def __rand__(
         self,
-        lhs: str,
+        lhs: str | LexRule,
     ) -> Self:
         return self.prefix(lhs)
 
@@ -184,6 +231,5 @@ class Parser(Generic[Result], ABC, Errorable):
                 return or_.Or[Result].for_children(self, rhs)
 
 
-from pysh.core.lexer import lexer, rule as lexer_rule
 from . import and_, or_, head
 from .objects import param

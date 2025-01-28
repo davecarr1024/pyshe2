@@ -96,3 +96,10 @@ def test_include():
     assert Lexer.for_rules(Rule.for_str("a"), Rule.for_str("b", include=False))(
         "ab"
     ) == Result.for_tokens(Token("a", "a"))
+
+
+def test_ambiguous():
+    pytest.raises(
+        Lexer.Error,
+        lambda: Lexer.for_rules(Rule.for_str("r", "a"), Rule.for_str("s", "a"))("a"),
+    )

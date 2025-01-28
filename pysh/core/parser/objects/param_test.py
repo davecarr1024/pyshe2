@@ -1,3 +1,4 @@
+from pysh.core.lexer import Rule
 from pysh.core.parser import Parser, State
 from pysh.core.parser.objects import Param, Params, Arg
 from pysh.core.regex import Regex
@@ -11,8 +12,26 @@ def test_apply():
     assert _int.param("i")("123") == (State(), Arg[int]("i", 123))
 
 
-def test_affix():
-    assert ("a" & _int.param("i") & "b")("a123b") == (State(), Arg[int]("i", 123))
+def test_prefix(subtests):
+    for prefix in list[str | Rule](
+        [
+            "a",
+            Rule.for_str("a"),
+        ]
+    ):
+        with subtests.test(prefix=prefix):
+            assert (prefix & _int.param("i"))("a123") == (State(), Arg[int]("i", 123))
+
+
+def test_suffix(subtests):
+    for suffix in list[str | Rule](
+        [
+            "a",
+            Rule.for_str("a"),
+        ]
+    ):
+        with subtests.test(suffix=suffix):
+            assert (_int.param("i") & suffix)("123a") == (State(), Arg[int]("i", 123))
 
 
 def test_combine():

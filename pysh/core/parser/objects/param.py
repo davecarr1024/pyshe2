@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 from typing import Self, Union, overload, override
+from pysh.core.lexer import Rule
 from pysh.core.parser.objects.arg import Arg
 from pysh.core.parser.parser import Parser
 from pysh.core.parser.transform import Transform
+from pysh.core.regex import Regex
 
 
 @dataclass(frozen=True)
@@ -18,7 +20,7 @@ class Param[Result](Transform[Arg[Result], Result, Parser[Result]]):
         return f"{self.child}.param({self.name})"
 
     @overload
-    def __and__(self, rhs: str) -> Self: ...
+    def __and__(self, rhs: str | Rule) -> Self: ...
 
     @overload
     def __and__(self, rhs: "Param") -> "params.Params": ...
@@ -28,6 +30,7 @@ class Param[Result](Transform[Arg[Result], Result, Parser[Result]]):
         self,
         rhs: Union[
             str,
+            Rule,
             "Param",
             "params.Params",
         ],
@@ -40,7 +43,7 @@ class Param[Result](Transform[Arg[Result], Result, Parser[Result]]):
                 return params.Params.for_children(self, rhs)
             case params.Params():
                 return params.Params.for_children(self, *rhs)
-            case str():
+            case str() | Rule() | Regex():
                 return super().__and__(rhs)
 
 

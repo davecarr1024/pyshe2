@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import string
-from typing import Iterable, Optional, Sequence, final, overload, override
+from typing import Iterable, Optional, Sequence, cast, final, overload, override
 from pysh.core.errors import Error, Errorable
 from pysh.core.regex.result import Result
 from pysh.core.regex.state import State
@@ -12,31 +12,44 @@ class Regex(ABC, Errorable):
     @staticmethod
     def for_str(input: str) -> "Regex":
         from pysh.core.parser import Parser
-        from pysh.core.regex import And, Literal
+        from pysh.core.lexer import Rule
+        from pysh.core.regex import And, Literal, Range
 
-        operators: Sequence[str] = "()[]^*+?\\"
+        operators: Sequence[str] = "()[-]^*+?\\"
+        literal_lexrule: Rule = Rule.for_str(
+            "literal", Regex.class_(operators, "operators").not_()
+        )
 
-        def literal() -> Parser[Literal]:
-            return (
-                Parser.head("literal", Regex.class_(operators, "operators").not_())
-                .value()
-                .transform(Literal)
-            )
+        def literal_str(value: str) -> Rule:
+            return Rule.for_str(value, Regex.literal(value))
 
-        def regex() -> Parser[Regex]:
-            def to_and(children: Sequence[Regex]) -> Regex:
-                match len(children):
-                    case 0:
-                        raise Regex.ParseError(msg=f"empty regex from {repr(input)}")
-                    case 1:
-                        return children[0]
-                    case _:
-                        return And.for_children(*children)
+        literal: Parser[Regex] = Parser.head(literal_lexrule).value().transform(Literal)
 
-            return literal().until_empty().transform(to_and)
+        range: Parser[Regex] = (
+            literal_str("[")
+            & Parser.head(literal_lexrule).value().param("min")
+            & literal_str("-")
+            & Parser.head(literal_lexrule).value().param("max")
+            & literal_str("]")
+        ).object(Range)
+
+        def to_and(children: Sequence[Regex]) -> Regex:
+            match len(children):
+                case 0:
+                    raise Regex.ParseError(msg=f"empty regex from {repr(input)}")
+                case 1:
+                    return children[0]
+                case _:
+                    return And.for_children(*children)
+
+        regex: Parser[Regex] = (
+            (cast(Parser[Regex], literal) | cast(Parser[Regex], range))
+            .until_empty()
+            .transform(to_and)
+        )
 
         try:
-            _, result = regex()(input)
+            _, result = regex(input)
         except Parser.Error as error:
             raise Regex.ParseError(
                 msg=f"failed to parse regex {repr(input)}",

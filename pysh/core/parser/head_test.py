@@ -89,3 +89,4 @@ def test_apply(subtests):
                 pytest.raises(Parser.Error, lambda: parser(state))
             else:
                 assert parser(state) == expected
+
