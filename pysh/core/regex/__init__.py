@@ -11,3 +11,4 @@ from .one_or_more import OneOrMore
 from .zero_or_one import ZeroOrOne
 from .and_ import And
 from .or_ import Or
+from .not_ import Not

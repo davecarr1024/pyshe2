@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import override
+from typing import final, override
 from pysh.core.chars import Char, Stream
 from pysh.core.regex.regex import Regex
 from pysh.core.regex.result import Result
@@ -17,6 +17,7 @@ class Head(Regex):
         return self._try(state.tail)
 
     @override
+    @final
     def _apply(self, state: State) -> tuple[State, Result]:
         return (
             self._tail(state),
@@ -26,3 +27,9 @@ class Head(Regex):
                 ),
             ),
         )
+
+    def not_(self) -> "not_.Not":
+        return not_.Not(self)
+
+
+from . import not_

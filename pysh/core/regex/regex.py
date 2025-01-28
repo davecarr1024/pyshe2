@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import string
-from typing import Iterable, Optional, final, overload, override
+from typing import Iterable, Optional, Sequence, final, overload, override
 from pysh.core.errors import Errorable
 from pysh.core.regex.result import Result
 from pysh.core.regex.state import State
@@ -9,13 +9,31 @@ from pysh.core.regex.state import State
 class Regex(ABC, Errorable):
     @staticmethod
     def for_str(input: str) -> "Regex":
-        from pysh.core.regex.and_ import And
+        from pysh.core.parser import Parser
+        from pysh.core.regex import And, Literal
 
-        children = [Regex.literal(c) for c in input]
-        if len(children) == 1:
-            return children[0]
-        else:
-            return And.for_children(*children)
+        def to_and(children: Sequence[Regex]) -> Regex:
+            if len(children) == 1:
+                return children[0]
+            else:
+                return And.for_children(*children)
+
+        return to_and([Literal(c) for c in input])
+
+        operators: Sequence[str] = "()[]^*+?"
+
+        def literal() -> Parser[Literal]:
+            return (
+                Parser.head("literal", Regex.class_(operators).not_())
+                .value()
+                .transform(Literal)
+            )
+
+        def regex() -> Parser[Regex]:
+            return literal().until_empty().transform(to_and)
+
+        _, result = regex()(input)
+        return result
 
     @abstractmethod
     def _apply(self, state: State) -> tuple[State, Result]: ...
@@ -28,12 +46,6 @@ class Regex(ABC, Errorable):
     @abstractmethod
     def _str(self, depth: int) -> str: ...
 
-    @overload
-    def __call__(self, state: str) -> tuple[State, Result]: ...
-
-    @overload
-    def __call__(self, state: State) -> tuple[State, Result]: ...
-
     def __call__(self, state: str | State) -> tuple[State, Result]:
         match state:
             case State():
@@ -42,39 +54,31 @@ class Regex(ABC, Errorable):
                 return self._apply(State.for_str(state))
 
     @staticmethod
-    def literal(value: str) -> "Regex":
-        from pysh.core.regex.literal import Literal
-
-        return Literal(value)
+    def literal(value: str) -> "literal.Literal":
+        return literal.Literal(value)
 
     @staticmethod
-    def any() -> "Regex":
-        from pysh.core.regex.any import Any
-
-        return Any()
+    def any() -> "any.Any":
+        return any.Any()
 
     @staticmethod
     def class_(
         values: Iterable[str],
         display: Optional[str] = None,
-    ) -> "Regex":
-        from pysh.core.regex.class_ import Class
-
-        return Class(frozenset(values), display)
+    ) -> "class_.Class":
+        return class_.Class(frozenset(values), display)
 
     @staticmethod
-    def digits() -> "Regex":
+    def digits() -> "class_.Class":
         return Regex.class_(string.digits, r"\d")
 
     @staticmethod
-    def whitespace() -> "Regex":
+    def whitespace() -> "class_.Class":
         return Regex.class_(string.whitespace, r"\w")
 
     @staticmethod
-    def range(min: str, max: str) -> "Regex":
-        from pysh.core.regex.range import Range
-
-        return Range(min, max)
+    def range(min: str, max: str) -> "range.Range":
+        return range.Range(min, max)
 
     def zero_or_more(self) -> "Regex":
         from pysh.core.regex.zero_or_more import ZeroOrMore
@@ -108,3 +112,6 @@ class Regex(ABC, Errorable):
                 return Or.for_children(self, *rhs)
             case Regex():
                 return Or.for_children(self, rhs)
+
+
+from . import literal, any, class_, range
