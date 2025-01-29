@@ -13,7 +13,14 @@ class Regex(ABC, Errorable):
     def for_str(input: str) -> "Regex":
         from pysh.core.parser import Parser
         from pysh.core.lexer import Rule
-        from pysh.core.regex import And, Literal, Range
+        from pysh.core.regex import (
+            And,
+            Literal,
+            Range,
+            ZeroOrMore,
+            OneOrMore,
+            ZeroOrOne,
+        )
 
         operators: Sequence[str] = "()[-]^*+?\\"
         literal_lexrule: Rule = Rule.for_str(
@@ -23,15 +30,36 @@ class Regex(ABC, Errorable):
         def literal_str(value: str) -> Rule:
             return Rule.for_str(value, Regex.literal(value))
 
-        literal: Parser[Regex] = Parser.head(literal_lexrule).value().transform(Literal)
+        literal = cast(
+            Parser[Regex], Parser.head(literal_lexrule).value().transform(Literal)
+        )
 
-        range: Parser[Regex] = (
-            literal_str("[")
-            & Parser.head(literal_lexrule).value().param("min")
-            & literal_str("-")
-            & Parser.head(literal_lexrule).value().param("max")
-            & literal_str("]")
-        ).object(Range)
+        range = cast(
+            Parser[Regex],
+            (
+                literal_str("[")
+                & Parser.head(literal_lexrule).value().param("min")
+                & literal_str("-")
+                & Parser.head(literal_lexrule).value().param("max")
+                & literal_str("]")
+            ).object(Range),
+        )
+
+        unary_operand = literal | range
+
+        zero_or_more = cast(
+            Parser[Regex], (unary_operand & literal_str("*")).transform(ZeroOrMore)
+        )
+
+        one_or_more = cast(
+            Parser[Regex], (unary_operand & literal_str("+")).transform(OneOrMore)
+        )
+
+        zero_or_one = cast(
+            Parser[Regex], (unary_operand & literal_str("?")).transform(ZeroOrOne)
+        )
+
+        operand = zero_or_more | one_or_more | zero_or_one | unary_operand
 
         def to_and(children: Sequence[Regex]) -> Regex:
             match len(children):
@@ -42,11 +70,7 @@ class Regex(ABC, Errorable):
                 case _:
                     return And.for_children(*children)
 
-        regex: Parser[Regex] = (
-            (cast(Parser[Regex], literal) | cast(Parser[Regex], range))
-            .until_empty()
-            .transform(to_and)
-        )
+        regex: Parser[Regex] = operand.until_empty().transform(to_and)
 
         try:
             _, result = regex(input)
