@@ -69,6 +69,18 @@ def test_for_str(subtests):
                 "a?b",
                 Regex.literal("a").zero_or_one() & Regex.literal("b"),
             ),
+            (
+                '(a)',
+                Regex.literal('a'),
+            ),
+            (
+                '(ab)',
+                Regex.literal('a') & Regex.literal('b'),
+            ),
+            (
+                '((ab))',
+                Regex.literal('a') & Regex.literal('b'),
+            ),
         ]
     ):
         with subtests.test(input=input, expected=expected):

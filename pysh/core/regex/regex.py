@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from functools import cache
 import string
 from typing import Iterable, Optional, Sequence, cast, final, overload, override
 from pysh.core.errors import Error, Errorable
@@ -20,6 +21,7 @@ class Regex(ABC, Errorable):
             ZeroOrMore,
             OneOrMore,
             ZeroOrOne,
+            Or,
         )
 
         operators: Sequence[str] = "()[-]^*+?\\"
@@ -30,37 +32,6 @@ class Regex(ABC, Errorable):
         def literal_str(value: str) -> Rule:
             return Rule.for_str(value, Regex.literal(value))
 
-        literal = cast(
-            Parser[Regex], Parser.head(literal_lexrule).value().transform(Literal)
-        )
-
-        range = cast(
-            Parser[Regex],
-            (
-                literal_str("[")
-                & Parser.head(literal_lexrule).value().param("min")
-                & literal_str("-")
-                & Parser.head(literal_lexrule).value().param("max")
-                & literal_str("]")
-            ).object(Range),
-        )
-
-        unary_operand = literal | range
-
-        zero_or_more = cast(
-            Parser[Regex], (unary_operand & literal_str("*")).transform(ZeroOrMore)
-        )
-
-        one_or_more = cast(
-            Parser[Regex], (unary_operand & literal_str("+")).transform(OneOrMore)
-        )
-
-        zero_or_one = cast(
-            Parser[Regex], (unary_operand & literal_str("?")).transform(ZeroOrOne)
-        )
-
-        operand = zero_or_more | one_or_more | zero_or_one | unary_operand
-
         def to_and(children: Sequence[Regex]) -> Regex:
             match len(children):
                 case 0:
@@ -70,10 +41,60 @@ class Regex(ABC, Errorable):
                 case _:
                     return And.for_children(*children)
 
-        regex: Parser[Regex] = operand.until_empty().transform(to_and)
+        @cache
+        def literal() -> Parser[Regex]:
+            return Parser.head(literal_lexrule).value().transform(Literal)
+
+        @cache
+        def range() -> Parser[Regex]:
+            return (
+                literal_str("[")
+                & Parser.head(literal_lexrule).value().param("min")
+                & literal_str("-")
+                & Parser.head(literal_lexrule).value().param("max")
+                & literal_str("]")
+            ).object(Range)
+
+        @cache
+        def unary_operand() -> Parser[Regex]:
+            return literal() | range()
+
+        @cache
+        def zero_or_more() -> Parser[Regex]:
+            return (unary_operand() & literal_str("*")).transform(ZeroOrMore)
+
+        @cache
+        def one_or_more() -> Parser[Regex]:
+            return (unary_operand() & literal_str("+")).transform(OneOrMore)
+
+        @cache
+        def zero_or_one() -> Parser[Regex]:
+            return (unary_operand() & literal_str("?")).transform(ZeroOrOne)
+
+        @cache
+        def unary_operation() -> Parser[Regex]:
+            return zero_or_more() | one_or_more() | zero_or_one()
+
+        @cache
+        def operand() -> Parser[Regex]:
+            return unary_operand() | operation()
+
+        @cache
+        def and_() -> Parser[Regex]:
+            return (
+                literal_str("(") & operand().one_or_more() & literal_str(")")
+            ).transform(to_and)
+
+        @cache
+        def operation() -> Parser[Regex]:
+            return unary_operation() | and_()
+
+        @cache
+        def regex() -> Parser[Regex]:
+            return operand().until_empty().transform(to_and)
 
         try:
-            _, result = regex(input)
+            _, result = regex()(input)
         except Parser.Error as error:
             raise Regex.ParseError(
                 msg=f"failed to parse regex {repr(input)}",
