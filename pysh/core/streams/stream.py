@@ -3,10 +3,11 @@ from dataclasses import dataclass, field
 from typing import Iterable, Iterator, Self, Sequence, Sized, Union, overload, override
 
 from pysh.core.errors import Errorable
+from pysh.core.streams.abstract_stream import AbstractStream
 
 
 @dataclass(frozen=True)
-class Stream[T](ABC, Errorable, Sized, Iterable[T]):
+class Stream[T](Errorable, AbstractStream[T]):
     values: Sequence[T] = field(default_factory=list)
 
     def __str__(self) -> str:

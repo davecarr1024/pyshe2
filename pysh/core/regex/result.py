@@ -1,12 +1,14 @@
-from dataclasses import dataclass, field
-from typing import Iterable, Iterator, Optional, Self, Sized, Union, overload, override
+from dataclasses import dataclass, field, replace
+from typing import Iterable, Iterator, Optional, Self, Sequence, Sized, override
 
 from pysh.core.chars import Char, Position, Stream
-from pysh.core.errors import Errorable
+from pysh.core.processor.transform import AbstractTransform
+from pysh.core.regex.state import State
+from pysh.core.streams import AbstractStream
 
 
 @dataclass(frozen=True)
-class Result(Errorable, Sized, Iterable[Char]):
+class Result(AbstractStream[Char], Sized, Iterable[Char]):
     chars: Stream = field(default_factory=Stream)
 
     @override
@@ -18,40 +20,47 @@ class Result(Errorable, Sized, Iterable[Char]):
         return iter(self.chars)
 
     def _with_chars(self, chars: Stream) -> Self:
-        return self.__class__(chars)
+        return replace(self, chars=chars)
 
-    @overload
-    def __add__(self, rhs: Char) -> Self: ...
+    @override
+    def head(self) -> Char:
+        return self.chars.head()
 
-    @overload
-    def __add__(self, rhs: "Result") -> Self: ...
+    @override
+    def tail(self) -> Self:
+        return self._with_chars(self.chars.tail())
 
-    def __add__(self, rhs: Union[Char, "Result"]) -> Self:
+    @classmethod
+    def for_chars(cls, *chars: Char) -> Self:
+        return cls(chars=Stream.for_values(*chars))
+
+    @classmethod
+    def for_str(cls, value: str, position: Optional[Position] = None) -> Self:
+        return cls(chars=Stream.for_str(value, position))
+
+    def __add__(self, rhs: Char | Self) -> Self:
         match rhs:
+            case Char():
+                return self._with_chars(self.chars + rhs)
             case Result():
                 return self._with_chars(self.chars + rhs.chars)
-            case _:
-                return self._with_chars(self.chars + rhs)
 
     def __radd__(self, lhs: Char) -> Self:
         return self._with_chars(lhs + self.chars)
 
     @classmethod
-    def for_str(cls, input: str, position: Optional[Position] = None) -> Self:
-        return cls(Stream.for_str(input, position))
+    def merge(cls, *results: Self) -> Self:
+        result = cls()
+        for value in results:
+            result += value
+        return result
 
-    @classmethod
-    def for_chars(cls, *chars: Char) -> Self:
-        return cls()._with_chars(Stream.for_values(*chars))
+    @dataclass(frozen=True)
+    class Merger(AbstractTransform[State, "Result", Sequence["Result"]]):
+        @override
+        def _transform(self, result: Sequence["Result"]) -> "Result":
+            return Result.merge(*result)
 
-    def value(self) -> str:
-        return "".join(char.value for char in self)
-
-    def head(self) -> Char:
-        return self._try(
-            lambda: self.chars.head(),
-            "failed to get head of regex result",
-        )
-
-    def position(self) -> Position:
-        return self.head().position
+        @override
+        def _str(self, depth: int) -> str:
+            return "regex.Result.Merger()"
