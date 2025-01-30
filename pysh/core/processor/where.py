@@ -53,3 +53,4 @@ class Where[
     @override
     def _str(self, depth: int) -> str:
         return f"{self.child}.where({self.cond})"
+
